@@ -51,7 +51,28 @@ class LanguageModel(object):
     # Returns a pair (match_cost, match_length).
     def best_match(i):
       candidates = enumerate(reversed(cost[max(0, i-self._maxword):i]))
-      return min((c + self._wordcost.get(s[i-k-1:i].lower(), 9e999), k+1) for k,c in candidates)
+      min_cost = float('inf')
+      best_k = 0
+
+      for k, c in candidates:
+          word = s[i-k-1:i].lower()
+          word_cost = self._wordcost.get(word)
+
+          if word_cost is None:
+              if len(word) == 1:
+                  # Use a high (but not infinite) penalty for unknown single characters to allow continuation of the algorithm.
+                  word_cost = 25
+              else:
+                  # Use a a very high penalty for unknown longer words to force splitting into known words.
+                  word_cost = 9e999
+
+          current_total_cost = c + word_cost
+
+          if current_total_cost < min_cost:
+              min_cost = current_total_cost
+              best_k = k + 1
+
+      return min_cost, best_k
 
     # Build the cost array.
     cost = [0]
