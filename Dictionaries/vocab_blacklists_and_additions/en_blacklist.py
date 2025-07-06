@@ -1,0 +1,5 @@
+blacklist = [
+    "iam",
+    "talkabout",
+    "unitedstates",
+]
