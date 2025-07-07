@@ -22,7 +22,8 @@ The language support was extendend to the following languages out of the box:
 - Spanish (es)
 - Portuguese (pt)
 
-More functionalities were added aswell.
+More functionalities were added aswell:
+
 - A new rejoin() function was created. It splits merged words in a sentence and returns the whole sentence with the corrected words while retaining spacing rules for punctuation characters.
 - A candidates() function was added that returns not only one result, but instead several results sorted py their cost.
 - It is now possible to specify additional words that should be added to the dictionary or words that should be excluded while initializing the LanguageModel.
