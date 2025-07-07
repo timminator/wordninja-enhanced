@@ -2,7 +2,7 @@ import gzip, os, re
 from math import log
 
 
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 
 # Original idea on how to split strings is from:
@@ -209,8 +209,8 @@ class LanguageModel(object):
 
     def candidates(self, s: str, top_n=10) -> list:
         """
-        The main public function. It orchestrates the splitting of a complex string
-        containing letters, numbers, spaces, and punctuation.
+        Orchestrates the splitting of a complex string containing
+        letters, numbers, spaces, and punctuation.
         """
         s = s.lower()
         final_result_count = top_n
