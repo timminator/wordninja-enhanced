@@ -23,9 +23,11 @@ The language support was extendend to the following languages out of the box:
 - Portuguese (pt)
 
 More functionalities were added aswell.
-- It is now possible to specify additional words that should be added to the dictionary or words that should be excluded while initializing the LanguageModel.
 - A new rejoin() function was created. It splits merged words in a sentence and returns the whole sentence with the corrected words while retaining spacing rules for punctuation characters.
 - A candidates() function was added that returns not only one result, but instead several results sorted py their cost.
+- It is now possible to specify additional words that should be added to the dictionary or words that should be excluded while initializing the LanguageModel.
+- Hyphenated words are now also supported.
+- The algorithm now also preserves punctuation while spitting merged words and does no longer break down when encountering unknown characters.
 
 More info about these functionalities can be found further down in the usage section. 
 
