@@ -1,8 +1,9 @@
-import gzip, os, re
+import gzip
+import os
+import re
 from math import log
 
-
-__version__ = '3.0.1'
+__version__ = '3.1.0'
 
 
 # Original idea on how to split strings is from:
@@ -14,22 +15,27 @@ NO_SPACE_BEFORE_BASE = {'.', ',', ';', ':', '!', '?', ')', ']', '}', '%', "'", "
 NO_SPACE_AFTER_BASE = {'(', '[', '{', '«', '‹', '¡', '¿', '-', '$', '€', '£'}
 
 
-class LanguageModel(object):
+class LanguageModel:
     """
     Splits, analyzes, and rejoins text based on real-world word frequencies
     for a specified pre-defined language or a custom dictionary file.
     """
-    def __init__(self, language='en', word_file=None, add_words=None, blacklist=None, add_to_top=False):
+    def __init__(self, language='en', word_file=None, add_words=None, blacklist=None, add_to_top=False, overwrite=False):
         """
         Initializes a LanguageModel.
 
         Args:
-                language (str): The language code ('en', 'de', etc.) OR 'custom'. Defaults to 'en'.
-                word_file (str, optional): Path to a custom gzipped word frequency file.
-                                            **Required if language is 'custom'**.
-                add_words (list, optional): Words to add to the dictionary.
-                blacklist (list, optional): Words to remove from the dictionary.
-                add_to_top (bool, optional): If True, add_wordsed words are made common.
+            language (str): The language code ('en', 'de', etc.) OR 'custom'. Defaults to 'en'.
+            word_file (str, optional): Path to a custom gzipped word frequency file.
+                                       **Required if language is 'custom'**.
+            add_words (list, optional): Words to add to the dictionary. By default, only words that
+                                        do not already exist in the dictionary are added.
+            blacklist (list, optional): Words to remove from the dictionary.
+            add_to_top (bool, optional): If True, words in add_words are inserted with highest priority
+                                         (i.e., treated as the most frequent words).
+            overwrite (bool, optional): If True, replaces existing words in the dictionary with the versions
+                                        in add_words. The words will be appended to the top or bottom depending on add_to_top.
+                                        Useful for changing split behavior even for existing entries.
         """
 
         if language == 'custom':
@@ -61,14 +67,19 @@ class LanguageModel(object):
             words = [word for word in words if word not in blacklist_set]
 
         if add_words:
-            existing_words = set(words)
-            new_words = [w.lower() for w in add_words if w.lower() not in existing_words]
-            if add_to_top:
-                words = new_words + words
+            lower_add_words = [w.lower() for w in add_words]
+            if overwrite:
+                # Remove existing versions of these words
+                words = [w for w in words if w not in lower_add_words]
             else:
-                words = words + new_words
+                lower_add_words = [w for w in lower_add_words if w not in words]
 
-        self._wordcost = dict((k, log((i+1)*log(len(words)))) for i,k in enumerate(words))
+            if add_to_top:
+                words = lower_add_words + words
+            else:
+                words = words + lower_add_words
+
+        self._wordcost = dict((k, log((i + 1) * log(len(words)))) for i, k in enumerate(words))
         self._maxword = max(len(x) for x in words)
 
         self._no_space_before = NO_SPACE_BEFORE_BASE.copy()
@@ -90,7 +101,6 @@ class LanguageModel(object):
         self._SPLIT_RE = re.compile(r"\s+")
         self._SPLIT_RE_FOR_CANDIDATES = re.compile(r"(\s+)")
 
-
     def split(self, s):
         """
         Uses dynamic programming to infer the location of spaces in a string without spaces.
@@ -98,25 +108,24 @@ class LanguageModel(object):
         delimiters = self._SPLIT_RE.findall(s)
         texts = self._SPLIT_RE.split(s)
         new_texts = [self._split(x) for x in texts]
-        
+
         for i, delimiter in reversed(list(enumerate(delimiters))):
             if delimiter:
                 new_texts.insert(i + 1, [delimiter])
 
         return [item for sublist in new_texts for item in sublist if sublist]
 
-
     def _split(self, s):
         # Find the best match for the i first characters, assuming cost has
         # been built for the i-1 first characters.
         # Returns a pair (match_cost, match_length).
         def best_match(i):
-            candidates = enumerate(reversed(cost[max(0, i-self._maxword):i]))
+            candidates = enumerate(reversed(cost[max(0, i - self._maxword):i]))
             min_cost = float('inf')
             best_k = 0
 
             for k, c in candidates:
-                word = s[i-k-1:i].lower()
+                word = s[i - k - 1:i].lower()
                 word_cost = self._wordcost.get(word)
 
                 if word_cost is None:
@@ -137,35 +146,35 @@ class LanguageModel(object):
 
         # Build the cost array.
         cost = [0]
-        for i in range(1,len(s)+1):
-            c,k = best_match(i)
+        for i in range(1, len(s) + 1):
+            c, k = best_match(i)
             cost.append(c)
 
         # Backtrack to recover the minimal-cost string.
         out = []
         i = len(s)
-        while i>0:
-            c,k = best_match(i)
+        while i > 0:
+            c, k = best_match(i)
             assert c == cost[i]
             # Apostrophe and digit handling
             newToken = True
-            if not s[i-k:i] == "'": # ignore a lone apostrophe
+            if s[i - k:i] != "'":  # ignore a lone apostrophe
                 if len(out) > 0:
                     # re-attach split 's and split digits
-                    if out[-1] == "'s" or (s[i-1].isdigit() and out[-1][0].isdigit()): # digit followed by digit
-                        out[-1] = s[i-k:i] + out[-1] # combine current token with previous token
+                    if out[-1] == "'s" or (s[i - 1].isdigit() and out[-1][0].isdigit()):  # digit followed by digit
+                        out[-1] = s[i - k:i] + out[-1]  # combine current token with previous token
                         newToken = False
 
             if newToken:
-                out.append(s[i-k:i])
+                out.append(s[i - k:i])
 
             i -= k
 
         return reversed(out)
 
-
     def _post_process_candidate(self, split: list) -> list:
-        if not split: return []
+        if not split:
+            return []
         processed_split = [split[0]]
         for i in range(1, len(split)):
             token, prev_token = split[i], processed_split[-1]
@@ -176,7 +185,6 @@ class LanguageModel(object):
             else:
                 processed_split.append(token)
         return processed_split
-
 
     def _beam_search_on_chunk(self, s_chunk: str, beam_width: int) -> list:
         """
@@ -195,7 +203,7 @@ class LanguageModel(object):
                     if len(word) == 1:
                         word_cost = 25    # High but manageable penalty for single unknown chars
                     else:
-                        word_cost = 9e999 # Massive penalty for longer unknown words
+                        word_cost = 9e999  # Massive penalty for longer unknown words
 
                 if word_cost < 1e100:
                     for prev_split, prev_cost in dp[j]:
@@ -205,7 +213,6 @@ class LanguageModel(object):
             dp[i] = sorted(candidates_for_i, key=lambda x: x[1])[:beam_width]
 
         return dp[len(s_chunk)]
-
 
     def candidates(self, s: str, top_n=10) -> list:
         """
@@ -240,7 +247,6 @@ class LanguageModel(object):
 
         return processed_candidates[:final_result_count]
 
-
     def rejoin(self, text_string: str) -> str:
         """
         Takes a string, splits it into words using the split() method, and rejoins it
@@ -266,7 +272,7 @@ class LanguageModel(object):
 
             # Decide if a space is needed AFTER the current token by looking ahead
             if i < len(tokens) - 1:
-                next_token = tokens[i+1]
+                next_token = tokens[i + 1]
 
                 add_space = True
 
@@ -291,13 +297,16 @@ class LanguageModel(object):
 
 DEFAULT_LANGUAGE_MODEL = LanguageModel(language='en')
 
+
 def split(s):
     """Splits a string using the default English model."""
     return DEFAULT_LANGUAGE_MODEL.split(s)
 
+
 def candidates(s, top_n=10):
     """Finds candidates for a string using the default English model."""
     return DEFAULT_LANGUAGE_MODEL.candidates(s, top_n=top_n)
+
 
 def rejoin(s):
     """Rejoins a string using the default English model's spacing rules."""

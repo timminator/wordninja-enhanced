@@ -11,6 +11,7 @@ license-files = ["LICENSE"]
 keywords = ["text-processing", "nlp", "language", "segmentation"]
 authors = [{name = "Tim Lodemann"}]
 dynamic = ["version"]
+requires-python = ">=3.9"
 classifiers = [
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
@@ -32,3 +33,12 @@ wordninja_enhanced = ["resources/*.gz"]
 
 [tool.setuptools.dynamic]
 version = {attr = "wordninja_enhanced.wordninja.__version__"}
+
+[tool.ruff]
+exclude = ["build", "venv", ".venv", "__pycache__"]
+preview = true
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "W"]
+ignore = ["E501", "SIM108", "SIM102", "SIM114"]
