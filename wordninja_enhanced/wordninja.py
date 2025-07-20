@@ -3,7 +3,7 @@ import os
 import re
 from math import log
 
-__version__ = '3.1.0'
+__version__ = '3.1.1'
 
 
 # Original idea on how to split strings is from:
